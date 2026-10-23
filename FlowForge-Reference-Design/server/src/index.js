@@ -6,7 +6,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { Resend } from 'resend';
-import twilio from 'twilio';
 const app=express();
 const PORT=Number(process.env.PORT||4000);
 app.use(cors({origin:(process.env.CLIENT_ORIGIN||'http://localhost:5173').split(',').map(x=>x.trim())}));
@@ -18,9 +17,6 @@ const userSchema=new mongoose.Schema({name:{type:String,required:true,trim:true}
 passwordHash: { type: String, required: true },
 resetTokenHash: { type: String, default: null },
 resetTokenExpires: { type: Date, default: null },
-phoneOtpHash: { type: String, default: null },
-phoneOtpExpires: { type: Date, default: null },
-phoneOtpAttempts: { type: Number, default: 0 }
 }, { timestamps: true });
 const User=mongoose.model('User',userSchema);
 const Workflow=mongoose.model('Workflow',workflowSchema); const Run=mongoose.model('Run',runSchema);
@@ -28,14 +24,7 @@ const JWT_SECRET=process.env.JWT_SECRET||'change-this-development-secret-before-
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
-  const twilioClient =
-  process.env.TWILIO_ACCOUNT_SID &&
-  process.env.TWILIO_AUTH_TOKEN
-    ? twilio(
-        process.env.TWILIO_ACCOUNT_SID,
-        process.env.TWILIO_AUTH_TOKEN
-      )
-    : null;
+
   console.log('RESEND_API_KEY loaded:', Boolean(process.env.RESEND_API_KEY));
 console.log('RESEND_FROM_EMAIL loaded:', Boolean(process.env.RESEND_FROM_EMAIL));
 function makeToken(user){return jwt.sign({sub:user._id.toString(),email:user.email,name:user.name},JWT_SECRET,{expiresIn:'7d'});}
@@ -107,144 +96,6 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
 
     res.json({
       message: 'If the account exists, a reset email will be sent.'
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.post('/api/auth/send-phone-otp', async (req, res, next) => {
-  try {
-    const phone = String(req.body?.phone || '')
-      .trim()
-      .replace(/[\s()-]/g, '');
-  
-   if (!/^\+[1-9]\d{9,14}$/.test(phone)) {
-  return res.status(400).json({
-    error: 'Enter a valid phone number with country code.'
-  });
-}
-    const user = await User.findOne({ phone });
-
-    if (!user) {
-      return res.json({
-        message: 'If the account exists, an OTP will be sent.'
-      });
-    }
-
-    if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
-      return res.status(500).json({
-        error: 'SMS service is not configured.'
-      });
-    }
-
-    const otp = crypto.randomInt(100000, 1000000).toString();
-
-    user.phoneOtpHash = crypto
-      .createHash('sha256')
-      .update(otp)
-      .digest('hex');
-
-    user.phoneOtpExpires = new Date(Date.now() + 5 * 60 * 1000);
-    user.phoneOtpAttempts = 0;
-
-    await user.save();
-
-    try {
-      await twilioClient.messages.create({
-        body: `Your FlowForge password reset OTP is ${otp}. It expires in 5 minutes.`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: phone
-      });
-    } catch (smsError) {
-      user.phoneOtpHash = null;
-      user.phoneOtpExpires = null;
-      await user.save();
-      throw smsError;
-    }
-
-    res.json({
-      message: 'If the account exists, an OTP will be sent.'
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-
-app.post('/api/auth/reset-password-phone', async (req, res, next) => {
-  try {
-    const phone = String(req.body?.phone || '')
-      .trim()
-      .replace(/[\s()-]/g, '');
-
-    const otp = String(req.body?.otp || '').trim();
-    const password = String(req.body?.password || '');
-
-    if (!/^\+[1-9]\d{9,14}$/.test(phone)) {
-      return res.status(400).json({
-        error: 'Enter a valid phone number with country code.'
-      });
-    }
-
-    if (!/^\d{6}$/.test(otp) || password.length < 8) {
-      return res.status(400).json({
-        error: 'Enter a valid 6-digit OTP and a password of at least 8 characters.'
-      });
-    }
-
-    const user = await User.findOne({ phone });
-
-    if (
-      !user ||
-      !user.phoneOtpHash ||
-      !user.phoneOtpExpires ||
-      user.phoneOtpExpires <= new Date()
-    ) {
-      return res.status(400).json({
-        error: 'OTP is invalid or expired. Request a new OTP.'
-      });
-    }
-
-    if (user.phoneOtpAttempts >= 5) {
-      user.phoneOtpHash = null;
-      user.phoneOtpExpires = null;
-      await user.save();
-
-      return res.status(429).json({
-        error: 'Too many attempts. Request a new OTP.'
-      });
-    }
-
-    const otpHash = crypto
-      .createHash('sha256')
-      .update(otp)
-      .digest('hex');
-
-    if (otpHash !== user.phoneOtpHash) {
-      user.phoneOtpAttempts += 1;
-
-      if (user.phoneOtpAttempts >= 5) {
-        user.phoneOtpHash = null;
-        user.phoneOtpExpires = null;
-      }
-
-      await user.save();
-
-      return res.status(400).json({
-        error: 'Incorrect OTP.'
-      });
-    }
-
-    user.passwordHash = await bcrypt.hash(password, 12);
-    user.phoneOtpHash = null;
-    user.phoneOtpExpires = null;
-    user.phoneOtpAttempts = 0;
-
-    await user.save();
-
-    return res.json({
-      message: 'Password reset successfully. Please sign in.'
     });
   } catch (error) {
     next(error);

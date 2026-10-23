@@ -46,9 +46,8 @@ export default function App() {
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
-  const [resetMethod, setResetMethod] = useState('email');
-  const [phoneOtp, setPhoneOtp] = useState('');
-  const [phoneResetPassword, setPhoneResetPassword] = useState('');
+  const [loginCountryCode, setLoginCountryCode] = useState('+91');
+
   const [authBusy, setAuthBusy] = useState(false);
   const [userName, setUserName] = useState(localStorage.getItem('flowforgeUserName') || '');
   useEffect(() => {
@@ -73,7 +72,27 @@ export default function App() {
     setAuthBusy(true);
     try {
       const endpoint = authMode === 'signup' ? '/auth/signup' : '/auth/login';
-      const payload = authMode === 'signup' ? { name: fullName.trim(), email: loginEmail.trim(), phone: phoneNumber.trim(), password: loginPassword } : { identifier: loginEmail.trim(), password: loginPassword };
+
+const isPhoneLogin =
+  authMode === 'signin' && !loginEmail.includes('@');
+
+const cleanNumber = loginEmail.trim().replace(/[\s()-]/g, '');
+
+const identifier = isPhoneLogin
+  ? `${loginCountryCode}${cleanNumber.replace(/^\+/, '')}`
+  : loginEmail.trim();
+
+const payload = authMode === 'signup'
+  ? {
+      name: fullName.trim(),
+      email: loginEmail.trim(),
+      phone: `${countryCode}${phoneNumber.trim().replace(/[\s()-]/g, '').replace(/^\+/, '')}`,
+      password: loginPassword
+    }
+  : {
+      identifier,
+      password: loginPassword
+    };
       const { data } = await api.post(endpoint, payload);
       localStorage.setItem('flowforgeToken', data.token);
       localStorage.setItem('flowforgeEmail', data.user.email);
@@ -83,58 +102,6 @@ export default function App() {
     } catch (e) { setLoginError(e.response?.data?.error || 'Could not connect to FlowForge server. Check that backend and MongoDB are running.'); }
     finally { setAuthBusy(false); }
   }
-
-
-async function handleSendPhoneOtp() {
-  const phone = loginEmail.trim().replace(/[\s()-]/g, '');
-
-  if (!/^\+[1-9]\d{9,14}$/.test(phone)) {
-    setLoginError('Enter your phone number with country code, e.g. +919876543210.');
-    return;
-  }
-
-  setLoginError('');
-  setAuthBusy(true);
-
-  try {
-    const { data } = await api.post('/auth/send-phone-otp', { phone });
-    setLoginError(data.message || 'If the account exists, an OTP will be sent.');
-  } catch (e) {
-    setLoginError(e.response?.data?.error || 'Could not send OTP.');
-  } finally {
-    setAuthBusy(false);
-  }
-}
-
-async function handleResetPasswordPhone(event) {
-  event.preventDefault();
-  setLoginError('');
-
-  if (phoneResetPassword.length < 8) {
-    setLoginError('Password must be at least 8 characters.');
-    return;
-  }
-
-  setAuthBusy(true);
-
-  try {
-    const phone = loginEmail.trim().replace(/[\s()-]/g, '');
-
-    const { data } = await api.post('/auth/reset-password-phone', {
-      phone,
-      otp: phoneOtp,
-      password: phoneResetPassword
-    });
-
-    setPhoneOtp('');
-    setPhoneResetPassword('');
-    setLoginError(data.message || 'Password reset successfully. Please sign in.');
-  } catch (e) {
-    setLoginError(e.response?.data?.error || 'Could not reset password.');
-  } finally {
-    setAuthBusy(false);
-  }
-}
 
   async function handleForgotPassword() {
   const email = loginEmail.trim().toLowerCase();
@@ -366,56 +333,69 @@ async function handleResetPassword(event) {
     </div>
   </label>
 )}
-              <label>{authMode === 'signup' ? 'Gmail / Email address' : 'Gmail or phone number'}<div className="auth-input-wrap"><span>✉</span><input type={authMode === 'signup' ? 'email' : 'text'} autoComplete="username" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder={authMode === 'signup' ? 'you@gmail.com' : 'you@gmail.com or +91 number'} required/></div></label>
+
+{authMode === 'signup' ? (
+  <label>
+    Gmail / Email address
+    <div className="auth-input-wrap">
+      <span>✉</span>
+      <input
+        type="email"
+        autoComplete="username"
+        value={loginEmail}
+        onChange={e => setLoginEmail(e.target.value)}
+        placeholder="you@gmail.com"
+        required
+      />
+    </div>
+  </label>
+) : (
+  <label>
+{loginEmail.trim() && /^[+\d\s()-]+$/.test(loginEmail.trim())
+      ? 'Phone number'
+      : 'Email or phone number'}
+
+    <div className="auth-input-wrap">
+{loginEmail.trim() && /^[+\d\s()-]+$/.test(loginEmail.trim()) ? (     
+     <select
+          value={loginCountryCode}
+          onChange={e => setLoginCountryCode(e.target.value)}
+          aria-label="Country code"
+        >
+          <option value="+91">🇮🇳 India (+91)</option>
+          <option value="+1">🇺🇸 USA / Canada (+1)</option>
+          <option value="+44">🇬🇧 UK (+44)</option>
+          <option value="+61">🇦🇺 Australia (+61)</option>
+          <option value="+977">🇳🇵 Nepal (+977)</option>
+          <option value="+880">🇧🇩 Bangladesh (+880)</option>
+          <option value="+971">🇦🇪 UAE (+971)</option>
+        </select>
+      ) : (
+        <span>✉</span>
+      )}
+
+      <input
+        type="text"
+        autoComplete="username"
+        value={loginEmail}
+        onChange={e => setLoginEmail(e.target.value)}
+        placeholder="Enter email or phone number"
+        required
+      />
+    </div>
+  </label>
+)}
               <label>Password<div className="auth-input-wrap"><span>⌑</span><input type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder={authMode === 'signup' ? 'At least 8 characters' : 'Enter your password'} required minLength={8}/></div></label>
              {authMode === 'signin' && (
   <div>
-    <button
-      type="button"
-      className="forgot-password-btn"
-      onClick={() => {
-        setResetMethod(resetMethod === 'email' ? 'phone' : 'email');
-        setLoginError('');
-      }}
-      disabled={authBusy}
-    >
-      Forgot Password? — Use {resetMethod === 'email' ? 'Phone OTP' : 'Email'}
-    </button>
-
-    {resetMethod === 'phone' && (
-      <div>
-        <button
-          type="button"
-          onClick={handleSendPhoneOtp}
-          disabled={authBusy}
-        >
-          Send OTP
-        </button>
-
-        <input
-          type="text"
-          placeholder="6-digit OTP"
-          value={phoneOtp}
-          onChange={e => setPhoneOtp(e.target.value)}
-          maxLength={6}
-        />
-
-        <input
-          type="password"
-          placeholder="New password (8 characters minimum)"
-          value={phoneResetPassword}
-          onChange={e => setPhoneResetPassword(e.target.value)}
-        />
-
-        <button
-          type="button"
-          onClick={handleResetPasswordPhone}
-          disabled={authBusy}
-        >
-          Reset Password
-        </button>
-      </div>
-    )}
+<button
+  type="button"
+  className="forgot-password-btn"
+  onClick={handleForgotPassword}
+  disabled={authBusy}
+>
+  Forgot Password?
+</button>
   </div>
 )}
               {loginError && <div className="auth-error"><AlertCircle size={16}/>{loginError}</div>}

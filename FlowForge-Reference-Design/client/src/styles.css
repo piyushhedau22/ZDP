@@ -5,3 +5,27 @@
 
 /* Reference-inspired Overview dashboard */
 .overview-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.85fr);gap:17px;align-items:stretch}.overview-layout .panel{min-width:0}.overview-chart-panel{min-height:285px}.chart-pill{font-size:10px;color:#aeb7d2;border:1px solid #303955;padding:8px 10px;border-radius:8px}.activity-chart{height:150px;display:flex;align-items:flex-end;gap:7px;padding:16px 5px 0;border-bottom:1px solid #2b3450;background:repeating-linear-gradient(to bottom,transparent 0,transparent 36px,#252d47 37px,#252d47 38px)}.activity-chart span{flex:1;min-width:4px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#9b7cff,#6254db);opacity:.9;box-shadow:0 0 12px #7862f522}.activity-chart span:nth-child(3n){background:linear-gradient(180deg,#53d7e8,#4471cc)}.chart-legend{display:flex;gap:20px;padding-top:13px;color:#8792b0;font-size:10px}.chart-legend span{display:flex;align-items:center;gap:7px}.chart-legend i{width:7px;height:7px;border-radius:2px;display:inline-block}.legend-purple{background:#8b72ff}.legend-cyan{background:#53d7e8}.success-panel{display:flex;flex-direction:column}.health-ring{width:142px;height:142px;border-radius:50%;margin:6px auto 18px;display:grid;place-items:center;background:conic-gradient(#8c70ff 0 72%,#4bd7c2 72% 98.6%,#26314a 98.6% 100%);position:relative}.health-ring:before{content:"";position:absolute;inset:12px;border-radius:50%;background:#121a2d}.health-ring>div{position:relative;text-align:center}.health-ring strong{display:block;font-size:24px}.health-ring small{display:block;color:#8e9ab9;font-size:10px;margin-top:4px}.health-meta{display:grid;gap:10px;margin-top:auto}.health-meta span{display:flex;justify-content:space-between;color:#929db9;font-size:11px}.health-meta b{color:#dce3f8}.recent-panel{grid-column:1}.quick-panel{grid-column:2}.recent-table{display:grid}.recent-row{width:100%;display:grid;grid-template-columns:minmax(0,1fr) 70px 80px;align-items:center;gap:12px;padding:12px 5px;background:transparent;border:0;border-bottom:1px solid #252e47;color:#aeb8d4;text-align:left;font-size:11px}.recent-head{color:#687493;text-transform:uppercase;letter-spacing:1px;font-size:9px}.recent-name{display:flex;align-items:center;gap:10px;min-width:0}.recent-name>span{display:grid;gap:4px;min-width:0}.recent-name b{font-weight:600;color:#e2e7f7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.recent-name small{font-size:9px;color:#7783a2}.recent-workflow-icon,.quick-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#302752;color:#b9a8ff;flex-shrink:0}.status-badge{font-style:normal;background:#143c35;color:#75e4be;padding:5px 8px;border-radius:6px;font-size:9px}.recent-row:not(.recent-head):hover{background:#1b2340}.empty-dashboard{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.empty-graphic{width:48px;height:48px;display:grid;place-items:center;background:#282148;color:#b7a6ff;border-radius:14px;margin-bottom:10px}.empty-dashboard strong{font-size:13px}.empty-dashboard p{font-size:11px;color:#8994b3;margin:7px 0 14px}.quick-action{display:flex;align-items:center;gap:10px;width:100%;padding:13px 0;background:transparent;border:0;border-bottom:1px solid #28314b;color:#e2e7f7;text-align:left}.quick-action>span:nth-child(2){display:grid;gap:4px;flex:1}.quick-action b{font-size:11px;font-weight:600}.quick-action small{font-size:10px;color:#8590ae}.quick-icon.green{background:#153c37;color:#69e3bb}.quick-icon.orange{background:#43321f;color:#f6c981}.quick-arrow{color:#7885a7}.quick-action:hover b{color:#b7a6ff}@media(max-width:1000px){.overview-layout{grid-template-columns:1fr}.recent-panel,.quick-panel{grid-column:auto}}@media(max-width:650px){.activity-chart{gap:3px}.recent-row{grid-template-columns:minmax(0,1fr) 40px 62px;gap:5px}.chart-legend{gap:12px}}
+
+
+.forgot-password-btn {
+  display: block;
+  margin: -6px 0 18px auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #b6aaff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: right;
+}
+
+.forgot-password-btn:hover {
+  color: #d0c8ff;
+  text-decoration: underline;
+}
+
+.forgot-password-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
