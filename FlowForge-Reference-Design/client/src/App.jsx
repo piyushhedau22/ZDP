@@ -1,12 +1,14 @@
 // ======================================================
 // App.jsx
 // ------------------------------------------------------
-// This is the main file of the Frontend.
-// It connects the Sidebar and the React Flow canvas together.
-// It also manages the state of nodes, edges, and WebSocket status.
+// Main application file with routing and authentication.
+// - /login     → Login page
+// - /register  → Register page
+// - /workflow  → Workflow Builder (Protected)
 // ======================================================
 
-import React, { useCallback, useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ReactFlow, {
   Background,
   Controls,
@@ -17,34 +19,44 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-// Import our custom components
 import CustomNode from './components/CustomNode';
 import Sidebar from './components/Sidebar';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
-// Register custom node type
 const nodeTypes = {
   custom: CustomNode,
 };
 
 // ======================================================
-// Helper function: Detect if a new connection will create a loop
+// Helper: Check if user is authenticated
+// ======================================================
+const isAuthenticated = () => {
+  return !!localStorage.getItem('authToken');
+};
+
+// ======================================================
+// Protected Route Component
+// ======================================================
+const ProtectedRoute = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+// ======================================================
+// Loop Detection Helper
 // ======================================================
 const wouldCreateCycle = (nodes, edges, source, target) => {
   const graph = {};
   nodes.forEach((node) => {
     graph[node.id] = [];
   });
-
   edges.forEach((edge) => {
-    if (graph[edge.source]) {
-      graph[edge.source].push(edge.target);
-    }
+    if (graph[edge.source]) graph[edge.source].push(edge.target);
   });
-
-  // Add the potential new connection
-  if (graph[source]) {
-    graph[source].push(target);
-  }
+  if (graph[source]) graph[source].push(target);
 
   const visited = new Set();
   const recStack = new Set();
@@ -52,14 +64,11 @@ const wouldCreateCycle = (nodes, edges, source, target) => {
   const dfs = (nodeId) => {
     if (recStack.has(nodeId)) return true;
     if (visited.has(nodeId)) return false;
-
     visited.add(nodeId);
     recStack.add(nodeId);
-
     for (let neighbor of graph[nodeId] || []) {
       if (dfs(neighbor)) return true;
     }
-
     recStack.delete(nodeId);
     return false;
   };
@@ -68,12 +77,11 @@ const wouldCreateCycle = (nodes, edges, source, target) => {
 };
 
 // ======================================================
-// Main App Component
+// Workflow Builder Component
 // ======================================================
-let nodeId = 2; // used to generate unique IDs for new nodes
+let nodeId = 2;
 
-function App() {
-  // State for nodes and edges
+const WorkflowBuilder = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState([
     {
       id: '1',
@@ -82,27 +90,22 @@ function App() {
       type: 'custom',
     },
   ]);
-
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [wsStatus, setWsStatus] = useState('disconnected');
+  const [errorMsg, setErrorMsg] = React.useState('');
+  const [wsStatus, setWsStatus] = React.useState('disconnected');
 
-  // Called when user connects two nodes
-  const onConnect = useCallback(
+  const onConnect = React.useCallback(
     (params) => {
-      // Prevent loops
       if (wouldCreateCycle(nodes, edges, params.source, params.target)) {
         setErrorMsg('Loop detected! This connection is not allowed.');
         setTimeout(() => setErrorMsg(''), 3000);
         return;
       }
-
       setEdges((eds) => addEdge({ ...params, animated: true }, eds));
     },
     [nodes, edges, setEdges]
   );
 
-  // Add a new node
   const addNode = (nodeType, label) => {
     const newNode = {
       id: `${nodeId++}`,
@@ -116,10 +119,8 @@ function App() {
     setNodes((nds) => nds.concat(newNode));
   };
 
-  // Delete selected nodes
   const deleteSelectedNodes = () => {
     const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id);
-
     setNodes((nds) => nds.filter((node) => !node.selected));
     setEdges((eds) =>
       eds.filter(
@@ -130,19 +131,15 @@ function App() {
     );
   };
 
-  // Simulate WebSocket connection
   const connectWebSocket = () => {
     setWsStatus('connecting');
-    setTimeout(() => {
-      setWsStatus('connected');
-    }, 1000);
+    setTimeout(() => setWsStatus('connected'), 1000);
   };
 
   const disconnectWebSocket = () => {
     setWsStatus('disconnected');
   };
 
-  // Simulate live execution (nodes run one by one)
   const startLiveTracing = () => {
     if (wsStatus !== 'connected') {
       setErrorMsg('Please connect WebSocket first!');
@@ -150,7 +147,6 @@ function App() {
       return;
     }
 
-    // Reset all nodes to pending
     setNodes((nds) =>
       nds.map((n) => ({
         ...n,
@@ -163,10 +159,8 @@ function App() {
 
     const runNext = () => {
       if (index >= nodeList.length) return;
-
       const currentId = nodeList[index].id;
 
-      // Set current node to running
       setNodes((nds) =>
         nds.map((n) =>
           n.id === currentId
@@ -176,7 +170,6 @@ function App() {
       );
 
       setTimeout(() => {
-        // Set current node to success
         setNodes((nds) =>
           nds.map((n) =>
             n.id === currentId
@@ -192,7 +185,6 @@ function App() {
     setTimeout(runNext, 400);
   };
 
-  // Reset all node statuses
   const resetStatus = () => {
     setNodes((nds) =>
       nds.map((n) => ({
@@ -202,9 +194,15 @@ function App() {
     );
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    window.location.href = '/login';
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
-      {/* Left Sidebar */}
       <Sidebar
         onAddNode={addNode}
         onDeleteSelected={deleteSelectedNodes}
@@ -215,9 +213,27 @@ function App() {
         wsStatus={wsStatus}
       />
 
-      {/* Right side - Canvas */}
       <div style={{ flex: 1, position: 'relative' }}>
-        {/* Error Message */}
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          style={{
+            position: 'absolute',
+            top: '15px',
+            right: '20px',
+            zIndex: 10,
+            padding: '8px 16px',
+            background: '#ef4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '600',
+          }}
+        >
+          Logout
+        </button>
+
         {errorMsg && (
           <div
             style={{
@@ -253,6 +269,30 @@ function App() {
         </ReactFlow>
       </div>
     </div>
+  );
+};
+
+// ======================================================
+// Main App with Routes
+// ======================================================
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/workflow"
+          element={
+            <ProtectedRoute>
+              <WorkflowBuilder />
+            </ProtectedRoute>
+          }
+        />
+        {/* Default route */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
